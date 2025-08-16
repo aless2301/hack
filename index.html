@@ -3,95 +3,128 @@
 <head>
   <meta charset="UTF-8">
   <title>Calificar Proyecto con IA</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      text-align: center; 
-      margin: 30px; 
-      background: #f5f5f5;
+    body {
+      font-family: sans-serif;
+      background: #0b1020;
+      color: #eef2ff;
+      text-align: center;
+      padding: 20px;
     }
-    h1 {
-      color: #333;
+    h1 { margin-bottom: 10px; }
+    p { color: #c7d2fe; }
+    .card {
+      background: #121932;
+      border-radius: 14px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 500px;
     }
-    #resultado { 
-      margin-top: 20px; 
-      font-size: 22px; 
-      font-weight: bold; 
-      color: #222;
-    }
-    .btn {
-      padding: 10px 20px;
-      font-size: 18px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 8px;
+    .drop {
+      border: 2px dashed #30408a;
+      border-radius: 12px;
+      padding: 20px;
       cursor: pointer;
+      background: rgba(255,255,255,0.05);
     }
-    .btn:hover {
-      background: #45a049;
-    }
-    input[type="file"] {
-      margin: 15px 0;
-    }
+    .drop input { display: none; }
+    img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+    button { margin-top: 20px; padding: 10px 16px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #7c9bff; color: white; }
+    .verdict { margin-top: 20px; font-size: 18px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Calificar Proyecto con IA</h1>
-  <p>Sube tu imagen para compararla con la referencia</p>
+  <p>Se aprueba si la similitud ≥ 80%</p>
 
-  <input type="file" id="upload" accept="image/*"><br>
-  <button id="btn" class="btn">Calificar Proyecto</button>
+  <div class="card">
+    <h3>Imagen de referencia</h3>
+    <img id="refImg" src="referencia.png" alt="Imagen de referencia" />
+  </div>
 
-  <div id="resultado"></div>
+  <div class="card">
+    <h3>Tu imagen</h3>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/*" />
+      <span>Suelta o selecciona una imagen</span>
+    </label>
+    <img id="userImg" hidden>
+  </div>
 
-  <!-- Imagen de referencia fija (oculta) -->
-  <img id="referencia" src="referencia.png" style="display:none;">
-  <!-- Imagen cargada por el usuario -->
-  <img id="proyecto" style="display:none;">
+  <button id="btnCompare">Calificar Proyecto</button>
+  <div id="verdict" class="verdict">Esperando comparación...</div>
 
   <script>
-    let modelo;
-    const referencia = document.getElementById("referencia");
-    const proyecto = document.getElementById("proyecto");
-    const upload = document.getElementById("upload");
-    const resultado = document.getElementById("resultado");
+    const drop = document.getElementById('drop');
+    const file = document.getElementById('file');
+    const userImg = document.getElementById('userImg');
+    const refImg = document.getElementById('refImg');
+    const btnCompare = document.getElementById('btnCompare');
+    const verdict = document.getElementById('verdict');
 
-    // Cargar modelo MobileNet
-    (async () => {
-      modelo = await mobilenet.load();
-      console.log("Modelo cargado ✅");
-    })();
+    let userLoaded = false;
+    let model;
 
-    // Mostrar la imagen subida
-    upload.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        proyecto.src = URL.createObjectURL(file);
-      }
+    // Cargar modelo IA
+    async function loadModel() {
+      model = await mobilenet.load({ version: 2, alpha: 1.0 });
+      console.log("Modelo MobileNet cargado ✅");
+    }
+    loadModel();
+
+    // Cargar imagen del usuario
+    drop.addEventListener('click', () => file.click());
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.background = 'rgba(124,155,255,0.1)'; });
+    drop.addEventListener('dragleave', () => drop.style.background = 'rgba(255,255,255,0.05)');
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.style.background = 'rgba(255,255,255,0.05)';
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
     });
+    file.addEventListener('change', () => { if (file.files[0]) handleFile(file.files[0]); });
 
-    // Calcular similitud con IA
-    document.getElementById("btn").addEventListener("click", async () => {
-      if (!proyecto.src) {
-        alert("Primero sube una imagen 📷");
-        return;
+    function handleFile(f) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        userImg.src = e.target.result;
+        userImg.hidden = false;
+        userLoaded = true;
+      };
+      reader.readAsDataURL(f);
+    }
+
+    // Función para obtener embeddings de imagen
+    async function getEmbedding(img) {
+      const logits = model.infer(img, true); // vector de características
+      return logits;
+    }
+
+    // Similitud coseno entre dos vectores
+    function cosineSimilarity(a, b) {
+      const dot = a.dot(b).dataSync()[0];
+      const normA = a.norm().dataSync()[0];
+      const normB = b.norm().dataSync()[0];
+      return dot / (normA * normB);
+    }
+
+    btnCompare.addEventListener('click', async () => {
+      if (!userLoaded) { alert("Primero sube tu imagen."); return; }
+      verdict.textContent = "Procesando con IA...";
+
+      const refVec = await getEmbedding(refImg);
+      const userVec = await getEmbedding(userImg);
+      const sim = cosineSimilarity(refVec, userVec);
+
+      const pct = (sim * 100).toFixed(2);
+      if (sim >= 0.8) {
+        verdict.textContent = `✅ Proyecto aprobado. Similitud: ${pct}%`;
+        verdict.style.color = "#4ade80";
+      } else {
+        verdict.textContent = `❌ Proyecto no aprobado. Similitud: ${pct}%`;
+        verdict.style.color = "#f87171";
       }
-
-      // Inferencia del modelo
-      const embRef = await modelo.infer(referencia, true);
-      const embProj = await modelo.infer(proyecto, true);
-
-      // Similaridad coseno
-      const dot = embRef.dot(embProj).dataSync()[0];
-      const normA = embRef.norm().dataSync()[0];
-      const normB = embProj.norm().dataSync()[0];
-      const similitud = dot / (normA * normB);
-
-      resultado.textContent = 
-        `Similitud con la referencia: ${(similitud * 100).toFixed(2)}% ✅`;
     });
   </script>
 </body>
