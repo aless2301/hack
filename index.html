@@ -1,147 +1,168 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Calificar Proyecto – Comparador de Imágenes</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #0b1020;
-      color: #eef2ff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    h1 { font-weight: bold; margin-bottom: 10px; }
-    p { color: #c7d2fe; margin-top: 0; }
-    .card {
-      background: #121932;
-      border-radius: 14px;
-      padding: 20px;
-      margin: 20px 0;
-      text-align: center;
-      width: 100%;
-      max-width: 500px;
-    }
-    .drop {
-      border: 2px dashed #30408a;
-      border-radius: 12px;
-      padding: 20px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.05);
-      margin-top: 10px;
-    }
-    .drop input { display: none; }
-    .preview { max-width: 100%; max-height: 280px; margin-top: 10px; border-radius: 10px; }
-    button { margin-top: 20px; padding: 10px 16px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #7c9bff; color: white; }
-    .verdict { margin-top: 20px; font-weight: bold; font-size: 18px; }
-    canvas { margin-top: 20px; max-width: 100%; border: 1px solid #29306a; border-radius: 10px; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calificar Proyecto – Comparador de Imágenes</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #0b1020;
+            color: #eef2ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 { font-weight: bold; margin-bottom: 10px; }
+        p { color: #c7d2fe; margin-top: 0; }
+        .card {
+            background: #121932;
+            border-radius: 14px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+        .drop {
+            border: 2px dashed #30408a;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            margin-top: 10px;
+        }
+        .drop input { display: none; }
+        .preview { max-width: 100%; max-height: 280px; margin-top: 10px; border-radius: 10px; }
+        button { margin-top: 20px; padding: 10px 16px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #7c9bff; color: white; }
+        .verdict { margin-top: 20px; font-weight: bold; font-size: 18px; }
+        .correct { color: #84cc16; } /* Color verde para correcto */
+        .incorrect { color: #ef4444; } /* Color rojo para incorrecto */
+        canvas { margin-top: 20px; max-width: 100%; border: 1px solid #29306a; border-radius: 10px; }
+    </style>
 </head>
 <body>
-  <h1>Calificar Proyecto</h1>
-  <p>Sube una imagen para compararla con la imagen de referencia.</p>
+    <h1>Calificar Proyecto</h1>
+    <p>Sube una imagen para compararla con la imagen de referencia.</p>
 
-  <div class="card">
-    <h3>Imagen de referencia</h3>
-    <img id="refImg" src="referencia.png" alt="Imagen fija" class="preview" />
-  </div>
+    <div class="card">
+        <h3>Imagen de referencia</h3>
+        <img id="refImg" src="referencia.png" alt="Imagen fija" class="preview" />
+    </div>
 
-  <div class="card">
-    <h3>Tu imagen</h3>
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept="image/*" />
-      <span>Suelta o selecciona una imagen</span>
-    </label>
-    <img id="preview" class="preview" hidden>
-  </div>
+    <div class="card">
+        <h3>Tu imagen</h3>
+        <label class="drop" id="drop">
+            <input type="file" id="file" accept="image/*" />
+            <span>Suelta o selecciona una imagen</span>
+        </label>
+        <img id="preview" class="preview" hidden>
+    </div>
 
-  <button id="btnCompare">Calificar Proyecto</button>
+    <button id="btnCompare">Calificar Proyecto</button>
 
-  <div id="verdict" class="verdict">Esperando comparación...</div>
-  <canvas id="canvasDiff" width="400" height="300"></canvas>
+    <div id="verdict" class="verdict">Esperando comparación...</div>
+    <canvas id="canvasDiff" width="400" height="300"></canvas>
 
-  <script>
-    const refImg = document.getElementById('refImg');
-    const drop = document.getElementById('drop');
-    const file = document.getElementById('file');
-    const preview = document.getElementById('preview');
-    const btnCompare = document.getElementById('btnCompare');
-    const verdict = document.getElementById('verdict');
-    const canvasDiff = document.getElementById('canvasDiff');
-    const ctxDiff = canvasDiff.getContext('2d', { willReadFrequently: true });
+    <script>
+        const refImg = document.getElementById('refImg');
+        const drop = document.getElementById('drop');
+        const file = document.getElementById('file');
+        const preview = document.getElementById('preview');
+        const btnCompare = document.getElementById('btnCompare');
+        const verdict = document.getElementById('verdict');
+        const canvasDiff = document.getElementById('canvasDiff');
+        const ctxDiff = canvasDiff.getContext('2d', { willReadFrequently: true });
 
-    let userImg = null;
+        let userImg = null;
 
-    // Un solo evento para cargar archivo
-    drop.addEventListener('click', () => file.click());
-    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.background = 'rgba(124,155,255,0.1)'; });
-    drop.addEventListener('dragleave', () => drop.style.background = 'rgba(255,255,255,0.05)');
-    drop.addEventListener('drop', (e) => {
-      e.preventDefault(); drop.style.background = 'rgba(255,255,255,0.05)';
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFile(e.dataTransfer.files[0]);
-      }
-    });
-    file.addEventListener('change', () => {
-      if (file.files && file.files[0]) handleFile(file.files[0]);
-    });
+        // Un solo evento para cargar archivo
+        drop.addEventListener('click', () => file.click());
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.background = 'rgba(124,155,255,0.1)'; });
+        drop.addEventListener('dragleave', () => drop.style.background = 'rgba(255,255,255,0.05)');
+        drop.addEventListener('drop', (e) => {
+            e.preventDefault(); drop.style.background = 'rgba(255,255,255,0.05)';
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        file.addEventListener('change', () => {
+            if (file.files && file.files[0]) handleFile(file.files[0]);
+        });
 
-    function handleFile(f) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          preview.src = img.src;
-          preview.hidden = false;
-          userImg = img;
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(f);
-    }
+        function handleFile(f) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    preview.src = img.src;
+                    preview.hidden = false;
+                    userImg = img;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(f);
+        }
 
-    function drawAndGetImageData(img, w, h) {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ct = c.getContext('2d', { willReadFrequently: true });
-      ct.drawImage(img, 0, 0, w, h);
-      return ct.getImageData(0, 0, w, h);
-    }
+        function drawAndGetImageData(img, w, h) {
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const ct = c.getContext('2d', { willReadFrequently: true });
+            ct.drawImage(img, 0, 0, w, h);
+            return ct.getImageData(0, 0, w, h);
+        }
 
-    btnCompare.addEventListener('click', () => {
-      if (!userImg) { alert('Primero sube una imagen.'); return; }
-      const w = Math.min(refImg.width, userImg.width);
-      const h = Math.min(refImg.height, userImg.height);
-      canvasDiff.width = w;
-      canvasDiff.height = h;
+        btnCompare.addEventListener('click', () => {
+            if (!userImg) { 
+                alert('Primero sube una imagen.'); 
+                return; 
+            }
+            
+            // Asegurarse de que la imagen de referencia esté cargada
+            if (!refImg.complete) {
+                alert('La imagen de referencia aún no se ha cargado. Inténtalo de nuevo en unos segundos.');
+                return;
+            }
 
-      const dataA = drawAndGetImageData(refImg, w, h);
-      const dataB = drawAndGetImageData(userImg, w, h);
-      const diff = ctxDiff.createImageData(w, h);
+            const w = Math.min(refImg.width, userImg.width);
+            const h = Math.min(refImg.height, userImg.height);
+            canvasDiff.width = w;
+            canvasDiff.height = h;
 
-      let equalPixels = 0;
-      for (let i=0; i<dataA.data.length; i+=4) {
-        const dr = Math.abs(dataA.data[i] - dataB.data[i]);
-        const dg = Math.abs(dataA.data[i+1] - dataB.data[i+1]);
-        const db = Math.abs(dataA.data[i+2] - dataB.data[i+2]);
-        const da = Math.abs(dataA.data[i+3] - dataB.data[i+3]);
-        const isEqual = (dr|dg|db|da) === 0;
-        if (isEqual) equalPixels++;
-        const val = Math.max(dr, dg, db);
-        diff.data[i] = val;
-        diff.data[i+1] = val;
-        diff.data[i+2] = val;
-        diff.data[i+3] = 255;
-      }
-      ctxDiff.putImageData(diff, 0, 0);
+            const dataA = drawAndGetImageData(refImg, w, h);
+            const dataB = drawAndGetImageData(userImg, w, h);
+            const diff = ctxDiff.createImageData(w, h);
 
-      const totalPixels = w*h;
-      const pctEqual = (equalPixels/totalPixels)*100;
-      verdict.textContent = pctEqual === 100 ? 'Las imágenes son idénticas' : `Similitud: ${pctEqual.toFixed(2)}%`;
-    });
-  </script>
+            let equalPixels = 0;
+            for (let i = 0; i < dataA.data.length; i += 4) {
+                const dr = Math.abs(dataA.data[i] - dataB.data[i]);
+                const dg = Math.abs(dataA.data[i + 1] - dataB.data[i + 1]);
+                const db = Math.abs(dataA.data[i + 2] - dataB.data[i + 2]);
+                const da = Math.abs(dataA.data[i + 3] - dataB.data[i + 3]);
+
+                const isEqual = (dr | dg | db | da) === 0;
+                if (isEqual) equalPixels++;
+
+                const val = Math.max(dr, dg, db);
+                diff.data[i] = val;
+                diff.data[i + 1] = val;
+                diff.data[i + 2] = val;
+                diff.data[i + 3] = 255;
+            }
+            ctxDiff.putImageData(diff, 0, 0);
+
+            const totalPixels = w * h;
+            const pctEqual = (equalPixels / totalPixels) * 100;
+
+            if (pctEqual > 80) {
+                verdict.textContent = `✅ ¡El proyecto es correcto! Similitud: ${pctEqual.toFixed(2)}%`;
+                verdict.className = 'verdict correct';
+            } else {
+                verdict.textContent = `❌ El proyecto no cumple. Similitud: ${pctEqual.toFixed(2)}%`;
+                verdict.className = 'verdict incorrect';
+            }
+        });
+    </script>
 </body>
 </html>
