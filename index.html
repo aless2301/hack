@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Comparador de Imágenes – Imagen fija vs subida</title>
+  <title>Calificar Proyecto – Comparador de Imágenes</title>
   <style>
     body {
       font-family: sans-serif;
@@ -41,7 +41,7 @@
   </style>
 </head>
 <body>
-  <h1>Comparador de Imágenes</h1>
+  <h1>Calificar Proyecto</h1>
   <p>Sube una imagen para compararla con la imagen de referencia.</p>
 
   <div class="card">
@@ -58,7 +58,7 @@
     <img id="preview" class="preview" hidden>
   </div>
 
-  <button id="btnCompare">Comparar</button>
+  <button id="btnCompare">Calificar Proyecto</button>
 
   <div id="verdict" class="verdict">Esperando comparación...</div>
   <canvas id="canvasDiff" width="400" height="300"></canvas>
@@ -75,6 +75,7 @@
 
     let userImg = null;
 
+    // Un solo evento para cargar archivo
     drop.addEventListener('click', () => file.click());
     drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.style.background = 'rgba(124,155,255,0.1)'; });
     drop.addEventListener('dragleave', () => drop.style.background = 'rgba(255,255,255,0.05)');
